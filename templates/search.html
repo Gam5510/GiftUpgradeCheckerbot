@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Поиск NFT</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Навигация -->
+        <nav class="navbar">
+            <div class="nav-brand">🎁 NFT Gifts</div>
+            <div class="nav-links">
+                <a href="/" class="nav-link">🏠 Главная</a>
+                <a href="/search" class="nav-link active">🔍 Поиск</a>
+            </div>
+        </nav>
+
+        <!-- Поисковая панель -->
+        <div class="search-panel">
+            <div class="search-row">
+                <select id="source-select" class="source-select">
+                    {% for source in sources %}
+                    <option value="{{ source.name }}">{{ source.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <select id="field-select" class="field-select">
+                    <option value="all">Все поля</option>
+                    <option value="model">Модель</option>
+                    <option value="owner">Владелец</option>
+                    <option value="symbol">Символ</option>
+                    <option value="backdrop">Фон</option>
+                    <option value="num">Номер (точный)</option>
+                </select>
+            </div>
+
+            <div class="search-box">
+                <input 
+                    type="text" 
+                    id="search-input" 
+                    class="search-input" 
+                    placeholder="Введите запрос для поиска..."
+                    autocomplete="off"
+                    list="search-suggestions"
+                >
+                <datalist id="search-suggestions"></datalist>
+                <div id="suggestions" class="suggestions-list"></div>  <!-- Добавляем контейнер для подсказок -->
+                <button id="search-button" class="search-button">🔍 Найти</button>
+            </div>
+        </div>
+
+        <!-- Результаты поиска -->
+        <div class="search-results">
+            <div class="results-header" id="results-header" style="display: none;">
+                Найдено результатов: <span id="results-count">0</span>
+            </div>
+
+            <div class="nft-grid" id="nft-grid">
+                <div class="search-placeholder">
+                    <div class="placeholder-icon">🔍</div>
+                    <p>Введите запрос для поиска NFT</p>
+                    <small>Можно искать по модели, владельцу, символу или номеру</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Загрузка -->
+        <div class="loading" id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Поиск...</p>
+        </div>
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('search-input');
+        const searchButton = document.getElementById('search-button');
+        const sourceSelect = document.getElementById('source-select');
+        const fieldSelect = document.getElementById('field-select');
+        const nftGrid = document.getElementById('nft-grid');
+        const loading = document.getElementById('loading');
+        const resultsHeader = document.getElementById('results-header');
+        const resultsCount = document.getElementById('results-count');
+
+        // Поиск с точным совпадением
+        async function performSearchExact(query) {
+            const source = sourceSelect.value;
+            const field = fieldSelect.value;
+
+            loading.style.display = 'flex';
+            nftGrid.innerHTML = '';
+            resultsHeader.style.display = 'none';
+
+            try {
+                const response = await fetch(`/api/search/${source}?query=${encodeURIComponent(query)}&field=${field}&exact=true`);
+                const result = await response.json();
+
+                loading.style.display = 'none';
+
+                if (result.success) {
+                    displayResults(result.data);
+                } else {
+                    nftGrid.innerHTML = `<div class="error">Ошибка: ${result.error}</div>`;
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                nftGrid.innerHTML = '<div class="error">Ошибка при выполнении поиска</div>';
+                console.error('Search error:', error);
+            }
+        }
+
+        // Обычный поиск (оставляем прежним)
+        async function performSearch() {
+            const query = searchInput.value.trim();
+            if (!query) {
+                alert('Введите запрос для поиска');
+                return;
+            }
+
+            const source = sourceSelect.value;
+            const field = fieldSelect.value;
+
+            loading.style.display = 'flex';
+            nftGrid.innerHTML = '';
+            resultsHeader.style.display = 'none';
+
+            try {
+                const response = await fetch(`/api/search/${source}?query=${encodeURIComponent(query)}&field=${field}`);
+                const result = await response.json();
+
+                loading.style.display = 'none';
+
+                if (result.success) {
+                    displayResults(result.data);
+                } else {
+                    nftGrid.innerHTML = `<div class="error">Ошибка: ${result.error}</div>`;
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                nftGrid.innerHTML = '<div class="error">Ошибка при выполнении поиска</div>';
+                console.error('Search error:', error);
+            }
+        }
+
+        // Отображение результатов
+        function displayResults(nfts) {
+            resultsHeader.style.display = 'block';
+            resultsCount.textContent = nfts.length;
+
+            if (nfts.length === 0) {
+                nftGrid.innerHTML = `
+                    <div class="search-placeholder">
+                        <div class="placeholder-icon">😔</div>
+                        <p>Ничего не найдено</p>
+                        <small>Попробуйте изменить запрос</small>
+                    </div>
+                `;
+                return;
+            }
+
+            nftGrid.innerHTML = nfts.map(nft => `
+                <div class="nft-card" style="background: linear-gradient(135deg, ${getGradientColors(nft.backdrop)})">
+                    <div class="nft-header">
+                        <span class="nft-num">#${nft.num}</span>
+                        <span class="nft-symbol">${nft.symbol || 'N/A'}</span>
+                    </div>
+                    <div class="nft-body">
+                        <div class="nft-model">${nft.model || 'Unknown'}</div>
+                        <div class="nft-info">
+                            <div class="nft-info-item">
+                                <span class="label">Владелец:</span>
+                                <span class="value">${nft.owner || 'Anonymous'}</span>
+                            </div>
+                            <div class="nft-info-item">
+                                <span class="label">Фон:</span>
+                                <span class="value">${nft.backdrop || 'Default'}</span>
+                            </div>
+                            <div class="nft-info-item">
+                                <span class="label">Количество:</span>
+                                <span class="value">${nft.quantity || 0}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="${nft.url}" target="_blank" class="nft-button">
+                        Открыть в Telegram
+                    </a>
+                </div>
+            `).join('');
+        }
+
+        // Генерация градиента
+        function getGradientColors(backdrop) {
+            const gradients = {
+                'Gold': '#FFD700, #FF8C00',
+                'Silver': '#C0C0C0, #808080',
+                'Bronze': '#CD7F32, #8B4513',
+                'Blue': '#4169E1, #1E90FF',
+                'Red': '#DC143C, #8B0000',
+                'Green': '#32CD32, #006400',
+                'Purple': '#9370DB, #4B0082',
+                'Pink': '#FF69B4, #FF1493',
+                'default': '#667eea, #764ba2'
+            };
+            return gradients[backdrop] || gradients['default'];
+        }
+
+        // Обработчики событий
+        searchButton.addEventListener('click', performSearch);
+        
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        // Автозаполнение для полей model и symbol (обновлено)
+        let autocompleteTimeout;
+        searchInput.addEventListener('input', async (e) => {
+            const query = e.target.value.trim();
+            const field = fieldSelect.value;
+            const source = sourceSelect.value;
+            
+            // Только для полей model и symbol и больше 3 символов
+            if (field !== 'model' && field !== 'symbol' || query.length <= 3) {
+                document.getElementById('search-suggestions').innerHTML = '';
+                return;
+            }
+            
+            clearTimeout(autocompleteTimeout);
+            autocompleteTimeout = setTimeout(async () => {
+                try {
+                    const response = await fetch(`/api/autocomplete/${source}/${field}?query=${encodeURIComponent(query)}`);
+                    const result = await response.json();
+                    
+                    if (result.success && result.data.length > 0) {
+                        const datalist = document.getElementById('search-suggestions');
+                        datalist.innerHTML = result.data.map(item => `<option value="${item}">`).join('');
+                    }
+                } catch (error) {
+                    console.error('Autocomplete error:', error);
+                }
+            }, 300);
+        });
+
+        // Обновление placeholder при изменении поля поиска
+        fieldSelect.addEventListener('change', (e) => {
+            const placeholders = {
+                'all': 'Введите запрос для поиска...',
+                'model': 'Введите модель для поиска...',
+                'owner': 'Введите имя владельца...',
+                'symbol': 'Введите символ для поиска...',
+                'backdrop': 'Введите название фона...',
+                'num': 'Введите точный номер подарка...'
+            };
+            searchInput.placeholder = placeholders[e.target.value] || 'Введите запрос для поиска...';
+            document.getElementById('search-suggestions').innerHTML = '';
+        });
+        let debounceTimer;
+        document.getElementById('search-input').addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const query = this.value;
+                if (query.length > 3) {  // Изменено: теперь требуется больше 3 символов
+                    fetch(`/get_autocomplete_data?query=${encodeURIComponent(query)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            const suggestions = document.getElementById('suggestions');
+                            suggestions.innerHTML = '';
+                            data.suggestions.forEach(sugg => {
+                                const div = document.createElement('div');
+                                div.textContent = sugg.value;
+                                div.onclick = () => {
+                                    document.getElementById('search-input').value = sugg.value;
+                                    suggestions.innerHTML = '';
+                                    // Автоматический поиск при выборе с точным совпадением
+                                    performSearchExact(sugg.value);
+                                };
+                                suggestions.appendChild(div);
+                            });
+                        });
+                } else {
+                    document.getElementById('suggestions').innerHTML = '';
+                }
+            }, 300);  // Debounce 300ms
+        });
+    </script>
+</body>
+</html>
