@@ -7,8 +7,7 @@ from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fuzzywuzzy import fuzz
-
+from rapidfuzz import fuzz
 # Создаем основное FastAPI приложение
 app = FastAPI(title="NFT Gift Monitor")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -225,3 +224,4 @@ async def shutdown_event():
         except asyncio.CancelledError:
             pass
         print("✅ Telegram бот остановлен")
+
