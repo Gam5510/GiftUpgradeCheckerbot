@@ -507,20 +507,34 @@ async def admin_list_sources(callback: CallbackQuery):
 
 async def main():
     """Главная функция запуска бота"""
-    # Инициализация БД
-    await db.init_db()
-    
-    # Добавление админов из переменных окружения
-    for admin_id in ADMIN_IDS:
-        await db.add_admin(admin_id)
-    
-    # Загрузка источников и парсеров
-    sources = await db.get_sources()
-    for source in sources:
-        parser_manager.add_parser(source['name'], source['base_url'], source['current_num'])
-    
-    print("🤖 Бот запущен!")
-    await dp.start_polling(bot)
+    try:
+        # Инициализация БД
+        await db.init_db()
+        print("✅ База данных инициализирована")
+        
+        # Добавление админов из переменных окружения
+        for admin_id in ADMIN_IDS:
+            await db.add_admin(admin_id)
+        
+        # Загрузка источников и парсеров
+        sources = await db.get_sources()
+        for source in sources:
+            parser_manager.add_parser(source['name'], source['base_url'], source['current_num'])
+        
+        print(f"✅ Загружено {len(sources)} источников")
+        print("🤖 Telegram бот запущен и готов к работе!")
+        
+        # Запускаем polling
+        await dp.start_polling(bot)
+        
+    except Exception as e:
+        print(f"❌ Ошибка при запуске бота: {e}")
+        raise
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n🛑 Бот остановлен пользователем")
+    except Exception as e:
+        print(f"\n❌ Критическая ошибка: {e}")
