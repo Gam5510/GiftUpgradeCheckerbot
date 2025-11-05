@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from database import Database
 from parser import ParserManager
 import uvicorn
-from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 
 app = FastAPI(title="NFT Gift Monitor")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -161,4 +161,5 @@ async def shutdown_event():
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+
 
