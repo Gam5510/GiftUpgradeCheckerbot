@@ -1,21 +1,18 @@
 services:
   - type: web
     name: nft-gift-monitor
-    env: docker
-    dockerfilePath: ./Dockerfile
+    runtime: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "./start.sh"
     envVars:
       - key: PORT
         value: 8000
-      - key: PYTHONUNBUFFERED
-        value: 1
       - key: TELEGRAM_BOT_TOKEN
         sync: false
-      - key: ADMIN_IDS
-        sync: false
-    healthCheckPath: /
-    buildCommand: ""
-    startCommand: "python webapp.py"
+      - key: PYTHONUNBUFFERED
+        value: 1
+    healthCheckPath: /ping
     disk:
-      name: nft-data
+      name: nft-db
       mountPath: /app/data
-      sizeGB: 1
+      sizeGB: 0.5
