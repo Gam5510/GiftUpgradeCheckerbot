@@ -1,26 +1,127 @@
 import asyncio
 import os
 import signal
-from multiprocessing import Process
 from database import Database
 from parser import ParserManager
+from fastapi import FastAPI, Request, HTTPException, Query
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fuzzywuzzy import fuzz
 
-# Глобальные переменные для корректной остановки
-bot_process = None
-webapp_process = None
+# Создаем основное FastAPI приложение
+app = FastAPI(title="NFT Gift Monitor")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
-def run_bot():
-    """Запуск Telegram бота в отдельном процессе"""
-    import asyncio
-    from bot import main as bot_main
-    asyncio.run(bot_main())
+# Инициализация компонентов
+db = Database()
+parser_manager = ParserManager()
 
-def run_webapp():
-    """Запуск веб-приложения в отдельном процессе"""
-    import uvicorn
-    from webapp import app
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+# Глобальные переменные для бота
+bot_task = None
+
+# === API эндпоинты из webapp.py ===
+
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    """Главная страница - просмотр последних NFT"""
+    sources = await db.get_sources()
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "sources": sources
+    })
+
+@app.get("/search", response_class=HTMLResponse)
+async def search_page(request: Request):
+    """Страница поиска"""
+    sources = await db.get_sources()
+    return templates.TemplateResponse("search.html", {
+        "request": request,
+        "sources": sources
+    })
+
+@app.get("/api/latest/{source_name}")
+async def get_latest(source_name: str, limit: int = 20):
+    """Получение последних NFT по источнику"""
+    try:
+        nfts = await db.get_latest_nfts(source_name, limit)
+        return {"success": True, "data": nfts}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/api/search/{source_name}")
+async def search_nfts(
+    source_name: str, 
+    query: str = Query(..., min_length=1),
+    field: str = "all",
+    exact: bool = Query(False, description="Точное совпадение")
+):
+    """Поиск NFT"""
+    try:
+        nfts = await db.search_nfts(source_name, query, field, exact)
+        return {"success": True, "data": nfts}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/api/stats/{source_name}")
+async def get_stats(source_name: str):
+    """Статистика по источнику"""
+    try:
+        stats = await db.get_stats(source_name)
+        parser_status = parser_manager.get_parser_status(source_name)
+        # Проверяем, что парсер действительно запущен
+        is_running = bool(parser_status and parser_status.get('status') == 'running')
+        return {
+            "success": True, 
+            "data": {**stats, "parser_status": {"status": "running" if is_running else "stopped"}}
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/api/sources")
+async def get_sources():
+    """Список всех источников"""
+    try:
+        sources = await db.get_sources()
+        return {"success": True, "data": sources}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/get_autocomplete_data")
+async def get_autocomplete_data(query: str = Query(None), field: str = Query("all")):
+    if not query:
+        return {"suggestions": []}
+    
+    if field == "all": 
+        unique_values = ( 
+            await db.get_global_unique_values("symbol") + 
+            await db.get_global_unique_values("model") + 
+            await db.get_global_unique_values("backdrop") + 
+            await db.get_global_unique_values("owner") 
+        ) 
+        field_type_map = { 
+            "symbol": await db.get_global_unique_values("symbol"), 
+            "model": await db.get_global_unique_values("model"), 
+            "backdrop": await db.get_global_unique_values("backdrop"), 
+            "owner": await db.get_global_unique_values("owner") 
+        } 
+    else: 
+        unique_values = await db.get_global_unique_values(field) 
+        field_type_map = {field: unique_values} 
+    
+    # Fuzzy matching 
+    suggestions = [] 
+    for item in unique_values: 
+        ratio = fuzz.partial_ratio(query.lower(), item.lower()) 
+        if ratio > 70:  # Порог совпадения 
+            item_type = next((ftype for ftype, vals in field_type_map.items() if item in vals), "unknown") 
+            suggestions.append({"value": item, "type": item_type}) 
+    
+    # Сортируем по релевантности 
+    suggestions.sort(key=lambda x: fuzz.partial_ratio(query.lower(), x['value'].lower()), reverse=True) 
+    
+    return {"suggestions": suggestions[:10]}  # Лимит 10
 
 async def init_database():
     """Инициализация базы данных"""
@@ -28,88 +129,99 @@ async def init_database():
     await db.init_db()
     print("✅ База данных инициализирована")
 
-def signal_handler(signum, frame):
-    """Обработчик сигналов для корректной остановки"""
-    print("\n🛑 Получен сигнал остановки, завершаем процессы...")
-    
-    if bot_process and bot_process.is_alive():
-        bot_process.terminate()
-        bot_process.join(timeout=5)
-        print("✅ Бот остановлен")
-    
-    if webapp_process and webapp_process.is_alive():
-        webapp_process.terminate()
-        webapp_process.join(timeout=5)
-        print("✅ Веб-приложение остановлено")
-    
-    exit(0)
 
-async def main():
-    """Главная функция запуска всего приложения"""
-    global bot_process, webapp_process
-    
-    print("="*50)
-    print("🎁 NFT Gift Monitor - Запуск системы")
-    print("="*50)
 
+@app.on_event("startup")
+async def startup_event():
+    """Инициализация при запуске"""
+    global bot_task
     
-    # Инициализация БД
-    await init_database()
+    await db.init_db()
+    print("✅ База данных инициализирована")
     
-    # Регистрация обработчиков сигналов
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-    
+    # Запуск Telegram бота в фоновом режиме
     try:
-        # Запуск бота в отдельном процессе
-        print("\n🤖 Запуск Telegram бота...")
-        bot_process = Process(target=run_bot)
-        bot_process.start()
-        await asyncio.sleep(2)
-        print("✅ Бот запущен")
-        
-        # Запуск веб-приложения в отдельном процессе
-        print("\n🌐 Запуск веб-приложения...")
-        webapp_process = Process(target=run_webapp)
-        webapp_process.start()
-        await asyncio.sleep(2)
-        
-        port = int(os.getenv("PORT", 8000))
-        web_url = os.getenv("WEB_APP_URL", f"http://localhost:{port}")
-        
-        print(f"✅ Веб-приложение запущено: {web_url}")
-        print("\n" + "="*50)
-        print("✅ Система полностью запущена!")
-        print("="*50)
-        print(f"\n📱 Telegram бот: работает")
-        print(f"🌐 Веб-интерфейс: {web_url}")
-        print(f"\n💡 Для остановки нажмите Ctrl+C")
-        print("="*50 + "\n")
-        
-        # Ожидание завершения процессов
-        while bot_process.is_alive() or webapp_process.is_alive():
-            await asyncio.sleep(1)
-            
-    except KeyboardInterrupt:
-        print("\n🛑 Получен сигнал остановки...")
+        bot_task = asyncio.create_task(run_bot())
+        print("✅ Telegram бот запущен в фоновом режиме")
     except Exception as e:
-        print(f"\n❌ Ошибка: {e}")
-    finally:
-        # Остановка процессов
-        if bot_process and bot_process.is_alive():
-            print("🛑 Остановка бота...")
-            bot_process.terminate()
-            bot_process.join(timeout=5)
-        
-        if webapp_process and webapp_process.is_alive():
-            print("🛑 Остановка веб-приложения...")
-            webapp_process.terminate()
-            webapp_process.join(timeout=5)
-        
-        print("✅ Все процессы остановлены")
+        print(f"❌ Ошибка запуска бота: {e}")
+    
+    # Загрузка источников и автоматический запуск парсеров
+    sources = await db.get_sources()
+    for source in sources:
+        parser_manager.add_parser(
+            source['name'], 
+            source['base_url'], 
+            source['current_num']
+        )
+        # Автоматический запуск парсера в режиме мониторинга новых подарков
+        try:
+            await parser_manager.start_parser(
+                source['name'], 
+                "new", 
+                lambda info, source_name=source['name']: save_nft_info(info, source_name)
+            )
+            print(f"✅ Парсер {source['name']} запущен в режиме мониторинга")
+        except Exception as e:
+            print(f"❌ Ошибка запуска парсера {source['name']}: {e}")
+    
+    print(f"✅ Загружено и запущено {len(sources)} источников")
 
-if __name__ == "__main__":
+async def save_nft_info(info: dict, source_name: str):
+    """Функция обратного вызова для сохранения NFT информации"""
     try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\n👋 До свидания!")
+        await db.save_nft(source_name, info)
+        print(f"🎁 Сохранен подарок #{info['num']} из {source_name}")
+    except Exception as e:
+        print(f"❌ Ошибка сохранения подарка #{info['num']} из {source_name}: {e}")
+
+async def run_bot():
+    """Запуск Telegram бота в фоновом режиме"""
+    try:
+        from bot import dp, bot, db as bot_db, parser_manager as bot_parser_manager, ADMIN_IDS
+        import asyncio
+        
+        print("🤖 Инициализация Telegram бота...")
+        
+        # Инициализация БД для бота
+        await bot_db.init_db()
+        print("✅ База данных для бота инициализирована")
+        
+        # Добавление админов из переменных окружения
+        for admin_id in ADMIN_IDS:
+            await bot_db.add_admin(admin_id)
+        
+        # Загрузка источников и парсеров
+        sources = await bot_db.get_sources()
+        for source in sources:
+            bot_parser_manager.add_parser(source['name'], source['base_url'], source['current_num'])
+        
+        print(f"✅ Загружено {len(sources)} источников для бота")
+        print("🤖 Telegram бот запущен и готов к работе!")
+        
+        # Запускаем polling в фоновом режиме
+        await dp.start_polling(bot)
+        
+    except Exception as e:
+        print(f"❌ Ошибка запуска бота: {e}")
+        raise
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Остановка всех компонентов при выключении"""
+    global bot_task
+    
+    print("🛑 Остановка всех компонентов...")
+    
+    # Останавливаем парсеры
+    await parser_manager.stop_all()
+    print("✅ Все парсеры остановлены")
+    
+    # Останавливаем бота
+    if bot_task and not bot_task.done():
+        bot_task.cancel()
+        try:
+            await bot_task
+        except asyncio.CancelledError:
+            pass
+        print("✅ Telegram бот остановлен")
