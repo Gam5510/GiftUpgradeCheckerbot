@@ -41,7 +41,7 @@ def get_main_keyboard() -> InlineKeyboardMarkup:
     """Главная клавиатура для обычных пользователей"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🚀 Открыть Web App", url=WEB_APP_URL)],
-        [InlineKeyboardButton(text="💬 Поддержка", url="https://t.me/your_support_username")]
+        [InlineKeyboardButton(text="💬 Поддержка", url="https://t.me/gam5510")]
     ])
 
 def get_admin_main_keyboard() -> InlineKeyboardMarkup:
@@ -538,3 +538,4 @@ if __name__ == "__main__":
         print("\n🛑 Бот остановлен пользователем")
     except Exception as e:
         print(f"\n❌ Критическая ошибка: {e}")
+
