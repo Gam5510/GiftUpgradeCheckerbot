@@ -5,21 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NFT Gift Monitor</title>
     <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Загрузка...</p>
+    </div>
+
     <div class="container">
-        <!-- Навигация -->
-        <nav class="navbar">
-            <div class="nav-brand">🎁 NFT Gifts</div>
-            <div class="nav-links">
-                <a href="/" class="nav-link active">🏠 Главная</a>
-                <a href="/search" class="nav-link">🔍 Поиск</a>
-            </div>
-        </nav>
+        <!-- Заголовок -->
+        <header class="header">
+            <h1 class="title-glow">NFT Gifts</h1>
+            <p class="subtitle">Мониторинг подарков в реальном времени</p>
+        </header>
 
         <!-- Выбор источника -->
         <div class="source-selector">
-            <label for="source-select">Выберите источник:</label>
             <select id="source-select" class="source-select">
                 {% for source in sources %}
                 <option value="{{ source.name }}">{{ source.name }}</option>
@@ -30,209 +32,220 @@
         <!-- Статистика -->
         <div class="stats-bar" id="stats-bar">
             <div class="stat-item">
-                <span class="stat-label">Всего:</span>
+                <span class="stat-label">Всего</span>
                 <span class="stat-value" id="stat-total">-</span>
             </div>
             <div class="stat-item">
-                <span class="stat-label">Последний:</span>
+                <span class="stat-label">Последний</span>
                 <span class="stat-value" id="stat-last">-</span>
             </div>
             <div class="stat-item">
-                <span class="stat-label">Статус:</span>
+                <span class="stat-label">Статус</span>
                 <span class="stat-value" id="stat-status">-</span>
             </div>
         </div>
 
-        <!-- Одна карточка в центре -->
-        <div class="nft-single-container" id="nft-single-container">
-            <!-- Карточка будет загружена через JS -->
-        </div>
+        <!-- Карточка NFT -->
+        <div id="nft-container"></div>
 
-        <!-- Загрузка -->
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Загрузка...</p>
+        <!-- Уведомление -->
+        <div id="site-notification" class="site-notification"></div>
+    </div>
+
+    <!-- КНОПКА ПОДДЕРЖАТЬ -->
+    <div class="support-fab" id="support-fab">
+        <svg class="ton-icon" viewBox="0 0 100 100" width="20" height="20">
+            <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="8"/>
+            <path d="M30 35 L50 25 L70 35 L70 65 L50 75 L30 65 Z" fill="currentColor"/>
+            <path d="M35 50 L50 40 L65 50 L65 60 L50 70 L35 60 Z" fill="#000"/>
+        </svg>
+        <span>Поддержать</span>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО — КРИПТОСТИЛЬ -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <svg class="ton-icon large" viewBox="0 0 100 100" width="32" height="32">
+                        <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="8"/>
+                        <path d="M30 35 L50 25 L70 35 L70 65 L50 75 L30 65 Z" fill="currentColor"/>
+                        <path d="M35 50 L50 40 L65 50 L65 60 L50 70 L35 60 Z" fill="#000"/>
+                    </svg>
+                    <h3>Поддержать проект</h3>
+                </div>
+                <button class="modal-close" id="modal-close">×</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-desc">Отправь любой TON на адрес кошелька:</p>
+                <div class="ton-address">
+                    <code id="ton-address">UQBVKStaBRLERdjJ_dnzRfREzqmyzkQn14uDE-DleRXJBqqH</code>
+                    <button id="copy-btn" class="copy-btn">
+                        <span class="copy-text">Скопировать</span>
+                        <span class="copy-check" style="display:none;">Скопировано!</span>
+                    </button>
+                </div>
+                <div class="network-info">
+                    <strong>Сеть:</strong> TON 
+                </div>
+                <div class="qr-placeholder">
+                    <img src="/static/qr-ton.png" alt="QR-код для TON" class="qr-image">
+                </div>
+                <p class="thanks">Спасибо за поддержку проекта!</p>
+            </div>
         </div>
     </div>
 
     <script>
-        let currentSource = document.getElementById('source-select').value;
-        let updateInterval;
-        let lastNFTNum = null; // Для отслеживания последнего подарка
+        // === ОСНОВНОЙ КОД ===
+        let currentSource = '{{ sources[0].name }}';
+        let lastNFT = null;
+        let isUpdating = false;
 
-        // Загрузка последнего NFT
-        async function loadLatestNFT() {
+        const $ = (id) => document.getElementById(id);
+        const container = $('nft-container');
+        const loading = $('loading');
+        const select = $('source-select');
+        const notif = $('site-notification');
+
+        const gradients = {
+            'Gold': 'linear-gradient(135deg, #ffd700, #ff8c00)',
+            'Silver': 'linear-gradient(135deg, #c0c0c0, #808080)',
+            'Bronze': 'linear-gradient(135deg, #cd7f32, #8b4513)',
+            'Blue': 'linear-gradient(135deg, #00bfff, #1e90ff)',
+            'Red': 'linear-gradient(135deg, #ff4500, #dc143c)',
+            'Green': 'linear-gradient(135deg, #32cd32, #228b22)',
+            'Purple': 'linear-gradient(135deg, #da70d6, #9370db)',
+            'Pink': 'linear-gradient(135deg, #ff69b4, #ff1493)',
+            'default': 'linear-gradient(135deg, #1a1a3a, #0f0f2e)'
+        };
+
+        async function update() {
+            if (isUpdating) return;
+            isUpdating = true;
+
             try {
-                const response = await fetch(`/api/latest/${currentSource}?limit=1`);
-                const result = await response.json();
-                
-                if (result.success && result.data.length > 0) {
-                    const nft = result.data[0];
-                    
-                    // Проверяем, изменился ли подарок
-                    if (lastNFTNum !== null && lastNFTNum !== nft.num) {
-                        // Новый подарок появился!
-                        displaySingleNFT(nft, true);
-                        showNotification(nft);
-                    } else if (lastNFTNum === null) {
-                        // Первая загрузка
-                        displaySingleNFT(nft, false);
+                const [latestRes, statsRes] = await Promise.all([
+                    fetch(`/api/latest/${currentSource}?limit=1`),
+                    fetch(`/api/stats/${currentSource}`)
+                ]);
+
+                const [latest, stats] = await Promise.all([latestRes.json(), statsRes.json()]);
+
+                if (latest.success && latest.data[0]) {
+                    const nft = latest.data[0];
+                    const isNew = lastNFT && lastNFT.num !== nft.num;
+
+                    if (!lastNFT || isNew) {
+                        renderNFT(nft, isNew);
+                        if (isNew) showSiteNotification();
                     }
-                    
-                    lastNFTNum = nft.num;
-                    document.getElementById('loading').style.display = 'none';
+                    lastNFT = nft;
                 }
-            } catch (error) {
-                console.error('Error loading NFT:', error);
-            }
-        }
 
-        // Загрузка статистики
-        async function loadStats() {
-            try {
-                const response = await fetch(`/api/stats/${currentSource}`);
-                const result = await response.json();
-                
-                if (result.success) {
-                    const data = result.data;
-                    document.getElementById('stat-total').textContent = data.total || 0;
-                    document.getElementById('stat-last').textContent = `#${data.last_num || 0}`;
-                    
-                    const status = data.parser_status?.status || 'stopped';
-                    const statusEl = document.getElementById('stat-status');
-                    
-                    if (status === 'running') {
-                        statusEl.innerHTML = '<span style="display: inline-block; animation: pulse 2s ease-in-out infinite;">🟢</span> Работает';
-                    } else {
-                        statusEl.textContent = '🔴 Остановлен';
-                    }
+                if (stats.success) {
+                    const d = stats.data;
+                    $('stat-total').textContent = d.total || 0;
+                    $('stat-last').textContent = `#${d.last_num || 0}`;
+                    const status = d.parser_status?.status;
+                    $('stat-status').innerHTML = status === 'running'
+                        ? '<span class="pulse">Работает</span>'
+                        : '<span style="color:#ff6b6b">Остановлен</span>';
                 }
-            } catch (error) {
-                console.error('Error loading stats:', error);
+
+                loading.style.display = 'none';
+            } catch (e) {
+                console.error(e);
+            } finally {
+                isUpdating = false;
             }
         }
 
-        // Показать уведомление о новом подарке
-        function showNotification(nft) {
-            // Проверяем поддержку уведомлений браузера
-            if ("Notification" in window && Notification.permission === "granted") {
-                new Notification("🎁 Новый подарок!", {
-                    body: `#${nft.num} - ${nft.model}\n${nft.owner || 'Anonymous'}`,
-                    icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🎁</text></svg>"
-                });
-            }
-            
-            // Визуальное уведомление на странице
-            const notification = document.createElement('div');
-            notification.className = 'new-gift-notification';
-            notification.textContent = '🎉 Новый подарок появился!';
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.classList.add('fade-out');
-                setTimeout(() => notification.remove(), 500);
-            }, 3000);
-        }
+        function renderNFT(nft, isNew) {
+            const bg = gradients[nft.backdrop] || gradients.default;
+            const badge = isNew ? '<div class="new-badge">НОВЫЙ!</div>' : '';
 
-        // Отображение одной карточки NFT в центре
-        function displaySingleNFT(nft, isNew = false) {
-            const container = document.getElementById('nft-single-container');
-            
-            if (!nft) {
-                container.innerHTML = '<div class="no-data">Подарков пока нет</div>';
-                return;
-            }
-
-            // Создаём карточку с анимацией появления
-            const animationClass = isNew ? 'fade-in scale-in' : 'fade-in';
-            const cardHTML = `
-                <div class="nft-card-single ${animationClass}" style="background: linear-gradient(135deg, ${getGradientColors(nft.backdrop)})">
-                    ${isNew ? '<div class="new-badge">✨ НОВЫЙ!</div>' : ''}
-                    <div class="nft-header-large">
-                        <span class="nft-num-large">#${nft.num}</span>
-                        <span class="nft-symbol-large">${nft.symbol || 'N/A'}</span>
+            container.innerHTML = `
+                <div class="nft-card ${isNew ? 'new' : ''}" style="background: ${bg};">
+                    ${badge}
+                    <div class="nft-header">
+                        <div class="nft-num">#${nft.num}</div>
+                        <div class="nft-symbol">${nft.symbol || 'N/A'}</div>
                     </div>
-                    <div class="nft-body-large">
-                        <div class="nft-model-large">${nft.model || 'Unknown'}</div>
-                        <div class="nft-info-large">
-                            <div class="nft-info-item-large">
-                                <span class="label">👤 Владелец:</span>
-                                <span class="value">${nft.owner || 'Anonymous'}</span>
-                            </div>
-                            <div class="nft-info-item-large">
-                                <span class="label">🎨 Фон:</span>
-                                <span class="value">${nft.backdrop || 'Default'}</span>
-                            </div>
-                            <div class="nft-info-item-large">
-                                <span class="label">📦 Количество:</span>
-                                <span class="value">${nft.quantity || 0}</span>
-                            </div>
-                        </div>
+                    <div class="nft-model">${nft.model || 'Unknown'}</div>
+                    <div class="nft-info">
+                        <div class="info-row"><span>Владелец:</span><span>${nft.owner || 'Anonymous'}</span></div>
+                        <div class="info-row"><span>Фон:</span><span>${nft.backdrop || 'Default'}</span></div>
+                        <div class="info-row"><span>Кол-во:</span><span>${nft.quantity || 0}</span></div>
                     </div>
-                    <a href="${nft.url}" target="_blank" class="nft-button-large">
-                        Открыть в Telegram →
+                    <a href="${nft.url}" target="_blank" class="nft-button">
+                        <span>Открыть в Telegram</span>
                     </a>
                 </div>
             `;
-            
-            container.innerHTML = cardHTML;
         }
 
-        // Генерация градиента по имени фона
-        function getGradientColors(backdrop) {
-            const gradients = {
-                'Gold': '#FFD700, #FF8C00',
-                'Silver': '#C0C0C0, #808080',
-                'Bronze': '#CD7F32, #8B4513',
-                'Blue': '#4169E1, #1E90FF',
-                'Red': '#DC143C, #8B0000',
-                'Green': '#32CD32, #006400',
-                'Purple': '#9370DB, #4B0082',
-                'Pink': '#FF69B4, #FF1493',
-                'default': '#667eea, #764ba2'
-            };
-            return gradients[backdrop] || gradients['default'];
+        function showSiteNotification() {
+            notif.innerHTML = `
+                <div class="alert-glow">
+                    <span class="alert-icon">gift</span>
+                    <span class="alert-text">Новый подарок!</span>
+                </div>
+            `;
+            notif.classList.add('show');
+            setTimeout(() => {
+                notif.classList.remove('show');
+                setTimeout(() => notif.innerHTML = '', 500);
+            }, 3000);
         }
 
-        // Смена источника
-        document.getElementById('source-select').addEventListener('change', (e) => {
+        select.addEventListener('change', (e) => {
             currentSource = e.target.value;
-            lastNFTNum = null; // Сброс последнего номера
-            document.getElementById('loading').style.display = 'flex';
-            document.getElementById('nft-single-container').innerHTML = '';
-            loadLatestNFT();
-            loadStats();
+            lastNFT = null;
+            loading.style.display = 'flex';
+            container.innerHTML = '';
+            notif.innerHTML = '';
+            update();
         });
 
-        // Автообновление каждую секунду (быстрее для мгновенного обновления)
-        function startAutoUpdate() {
-            updateInterval = setInterval(() => {
-                loadLatestNFT();
-                loadStats();
-            }, 1000);
-        }
+        // === ПОДДЕРЖКА ПРОЕКТА ===
+        const TON_ADDRESS = 'UQBVKStaBRLERdjJ_dnzRfREzqmyzkQn14uDE-DleRXJBqqH'; // ← ТВОЙ АДРЕС
+        const modal = $('modal');
+        const fab = $('support-fab');
+        const closeBtn = $('modal-close');
+        const copyBtn = $('copy-btn');
+        const copyText = copyBtn.querySelector('.copy-text');
+        const copyCheck = copyBtn.querySelector('.copy-check');
+        const addressEl = $('ton-address');
 
-        // Запрос разрешения на уведомления
-        function requestNotificationPermission() {
-            if ("Notification" in window && Notification.permission === "default") {
-                Notification.requestPermission();
-            }
-        }
-
-        // Инициализация
-        window.addEventListener('DOMContentLoaded', () => {
-            loadLatestNFT();
-            loadStats();
-            startAutoUpdate();
-            requestNotificationPermission();
+        fab.addEventListener('click', () => {
+            modal.classList.add('show');
+            addressEl.textContent = TON_ADDRESS;
         });
 
-        // Остановка обновлений при закрытии
-        window.addEventListener('beforeunload', () => {
-            if (updateInterval) {
-                clearInterval(updateInterval);
-            }
+        closeBtn.addEventListener('click', () => {
+            modal.classList.remove('show');
         });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.classList.remove('show');
+        });
+
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(TON_ADDRESS).then(() => {
+                copyText.style.display = 'none';
+                copyCheck.style.display = 'inline';
+                copyBtn.style.background = 'linear-gradient(90deg, #00ff88, #00ffff)';
+                setTimeout(() => {
+                    copyText.style.display = 'inline';
+                    copyCheck.style.display = 'none';
+                    copyBtn.style.background = '';
+                }, 2000);
+            });
+        });
+
+        setInterval(update, 1000);
+        window.addEventListener('load', update);
     </script>
 </body>
 </html>
