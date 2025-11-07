@@ -52,32 +52,28 @@
         <div id="site-notification" class="site-notification"></div>
     </div>
 
-    <!-- КНОПКА ПОДДЕРЖАТЬ -->
-    <div class="support-fab" id="support-fab">
-        <svg class="ton-icon" viewBox="0 0 100 100" width="20" height="20">
-            <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="8"/>
-            <path d="M30 35 L50 25 L70 35 L70 65 L50 75 L30 65 Z" fill="currentColor"/>
-            <path d="M35 50 L50 40 L65 50 L65 60 L50 70 L35 60 Z" fill="#000"/>
-        </svg>
-        <span>Поддержать</span>
-    </div>
-
     <!-- МОДАЛЬНОЕ ОКНО — КРИПТОСТИЛЬ -->
     <div class="modal-overlay" id="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <div class="modal-title">
-                    <svg class="ton-icon large" viewBox="0 0 100 100" width="32" height="32">
-                        <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="8"/>
-                        <path d="M30 35 L50 25 L70 35 L70 65 L50 75 L30 65 Z" fill="currentColor"/>
-                        <path d="M35 50 L50 40 L65 50 L65 60 L50 70 L35 60 Z" fill="#000"/>
+                    <svg class="ton-logo large" viewBox="0 0 100 100" width="40" height="40">
+                        <defs>
+                            <linearGradient id="tonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#00ffff"/>
+                                <stop offset="100%" stop-color="#ff00ff"/>
+                            </linearGradient>
+                        </defs>
+                        <path d="M50 10 L70 35 L70 65 L50 90 L30 65 L30 35 Z" fill="url(#tonGrad)" stroke="#fff" stroke-width="3"/>
+                        <path d="M35 45 L50 35 L65 45 L65 55 L50 65 L35 55 Z" fill="#000"/>
+                        <circle cx="50" cy="50" r="18" fill="none" stroke="#fff" stroke-width="2" class="pulse-ring"/>
                     </svg>
                     <h3>Поддержать проект</h3>
                 </div>
                 <button class="modal-close" id="modal-close">×</button>
             </div>
             <div class="modal-body">
-                <p class="modal-desc">Отправь любой TON на адрес кошелька:</p>
+                <p class="modal-desc">Отправь любой TON на кошелёк:</p>
                 <div class="ton-address">
                     <code id="ton-address">UQBVKStaBRLERdjJ_dnzRfREzqmyzkQn14uDE-DleRXJBqqH</code>
                     <button id="copy-btn" class="copy-btn">
@@ -86,12 +82,12 @@
                     </button>
                 </div>
                 <div class="network-info">
-                    <strong>Сеть:</strong> TON 
+                    <strong>Сеть:</strong> TON Mainnet
                 </div>
                 <div class="qr-placeholder">
-                    <img src="/static/qr-ton.png" alt="QR-код для TON" class="qr-image">
+                    <img src="/static/qr-ton.png" alt="QR-код TON" class="qr-image">
                 </div>
-                <p class="thanks">Спасибо за поддержку проекта!</p>
+                <p class="thanks">Спасибо за поддержку!</p>
             </div>
         </div>
     </div>
@@ -178,9 +174,20 @@
                         <div class="info-row"><span>Фон:</span><span>${nft.backdrop || 'Default'}</span></div>
                         <div class="info-row"><span>Кол-во:</span><span>${nft.quantity || 0}</span></div>
                     </div>
+
+                    <!-- КНОПКА TELEGRAM -->
                     <a href="${nft.url}" target="_blank" class="nft-button">
                         <span>Открыть в Telegram</span>
                     </a>
+
+                    <!-- КНОПКА ПОДДЕРЖАТЬ — ПРИКРЕПЛЕНА К КАРТОЧКЕ -->
+                    <button class="support-btn" onclick="openSupportModal()">
+                        <svg class="ton-logo-small" viewBox="0 0 100 100" width="18" height="18">
+                            <path d="M50 10 L70 35 L70 65 L50 90 L30 65 L30 35 Z" fill="url(#tonGrad)" stroke="#fff" stroke-width="2"/>
+                            <path d="M35 45 L50 35 L65 45 L65 55 L50 65 L35 55 Z" fill="#000"/>
+                        </svg>
+                        <span>Поддержать проект</span>
+                    </button>
                 </div>
             `;
         }
@@ -199,6 +206,39 @@
             }, 3000);
         }
 
+        // === ПОДДЕРЖКА ПРОЕКТА ===
+        const TON_ADDRESS = 'UQBVKStaBRLERdjJ_dnzRfREzqmyzkQn14uDE-DleRXJBqqH';
+
+        function openSupportModal() {
+            const modal = $('modal');
+            const addressEl = $('ton-address');
+            addressEl.textContent = TON_ADDRESS;
+            modal.classList.add('show');
+        }
+
+        $('modal-close').addEventListener('click', () => {
+            $('modal').classList.remove('show');
+        });
+
+        $('modal').addEventListener('click', (e) => {
+            if (e.target === $('modal')) $('modal').classList.remove('show');
+        });
+
+        $('copy-btn').addEventListener('click', () => {
+            navigator.clipboard.writeText(TON_ADDRESS).then(() => {
+                const copyText = $('copy-btn').querySelector('.copy-text');
+                const copyCheck = $('copy-btn').querySelector('.copy-check');
+                copyText.style.opacity = '0';
+                copyCheck.style.opacity = '1';
+                $('copy-btn').style.boxShadow = '0 0 30px rgba(0, 255, 136, 0.8)';
+                setTimeout(() => {
+                    copyText.style.opacity = '1';
+                    copyCheck.style.opacity = '0';
+                    $('copy-btn').style.boxShadow = '';
+                }, 2000);
+            });
+        });
+
         select.addEventListener('change', (e) => {
             currentSource = e.target.value;
             lastNFT = null;
@@ -206,42 +246,6 @@
             container.innerHTML = '';
             notif.innerHTML = '';
             update();
-        });
-
-        // === ПОДДЕРЖКА ПРОЕКТА ===
-        const TON_ADDRESS = 'UQBVKStaBRLERdjJ_dnzRfREzqmyzkQn14uDE-DleRXJBqqH'; // ← ТВОЙ АДРЕС
-        const modal = $('modal');
-        const fab = $('support-fab');
-        const closeBtn = $('modal-close');
-        const copyBtn = $('copy-btn');
-        const copyText = copyBtn.querySelector('.copy-text');
-        const copyCheck = copyBtn.querySelector('.copy-check');
-        const addressEl = $('ton-address');
-
-        fab.addEventListener('click', () => {
-            modal.classList.add('show');
-            addressEl.textContent = TON_ADDRESS;
-        });
-
-        closeBtn.addEventListener('click', () => {
-            modal.classList.remove('show');
-        });
-
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.classList.remove('show');
-        });
-
-        copyBtn.addEventListener('click', () => {
-            navigator.clipboard.writeText(TON_ADDRESS).then(() => {
-                copyText.style.display = 'none';
-                copyCheck.style.display = 'inline';
-                copyBtn.style.background = 'linear-gradient(90deg, #00ff88, #00ffff)';
-                setTimeout(() => {
-                    copyText.style.display = 'inline';
-                    copyCheck.style.display = 'none';
-                    copyBtn.style.background = '';
-                }, 2000);
-            });
         });
 
         setInterval(update, 1000);
