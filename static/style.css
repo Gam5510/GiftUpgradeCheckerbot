@@ -1,12 +1,14 @@
-/* === УЛЬТРАСОВРЕМЕННАЯ НЕОНОВАЯ ТЕМА === */
+/* === УЛЬТРАСОВРЕМЕННАЯ НЕОНОВАЯ ТЕМА — МЯГКИЙ ТЕКСТ В МОДАЛКЕ === */
 :root {
     --bg: #0a0a0f;
-    --card: rgba(20, 20, 35, 0.75);
-    --border: rgba(0, 255, 255, 0.25);
+    --card: rgba(20, 20, 35, 0.85);
+    --border: rgba(0, 255, 255, 0.3);
     --text: #e0f7ff;
     --text-muted: #88c0ff;
     --accent: #00ffff;
-    --neon: 0 0 20px rgba(0, 255, 255, 0.6), 0 0 40px rgba(0, 255, 255, 0.3);
+    --accent-soft: #00bfff;
+    --neon: 0 0 12px rgba(0, 255, 255, 0.5), 0 0 24px rgba(0, 255, 255, 0.2);
+    --neon-soft: 0 0 8px rgba(0, 255, 255, 0.4);
     --radius: 20px;
     --transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -30,18 +32,18 @@ body {
     overflow-x: hidden;
 }
 
-/* Неоновый фон с анимацией */
+/* Неоновый фон */
 body::before {
     content: '';
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
     background: 
-        radial-gradient(circle at 20% 80%, rgba(0, 255, 255, 0.18) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, rgba(255, 0, 255, 0.18) 0%, transparent 50%),
-        radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.12) 0%, transparent 60%);
+        radial-gradient(circle at 20% 80%, rgba(0, 255, 255, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(0, 255, 255, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.1) 0%, transparent 60%);
     pointer-events: none;
     z-index: -1;
-    animation: neonPulse 10s infinite alternate;
+    animation: neonPulse 12s infinite alternate;
 }
 
 @keyframes neonPulse {
@@ -68,14 +70,14 @@ body::before {
 .title-glow {
     font-weight: 700;
     font-size: 2.1rem;
-    color: #00ffff;
+    color: var(--accent);
     text-shadow: var(--neon);
     animation: titleGlow 3s infinite alternate;
 }
 
 @keyframes titleGlow {
     from { text-shadow: var(--neon); }
-    to { text-shadow: 0 0 30px rgba(0, 255, 255, 0.9), 0 0 60px rgba(0, 255, 255, 0.6); }
+    to { text-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 40px rgba(0, 255, 255, 0.5); }
 }
 
 .subtitle {
@@ -171,7 +173,7 @@ body::before {
 
 .nft-card.new {
     animation: appear 0.5s ease-out;
-    box-shadow: var(--neon), 0 0 60px rgba(0, 255, 255, 0.5);
+    box-shadow: var(--neon), 0 0 50px rgba(0, 255, 255, 0.4);
 }
 
 @keyframes appear {
@@ -183,8 +185,8 @@ body::before {
     position: absolute;
     top: 14px;
     right: 14px;
-    background: linear-gradient(45deg, #ff00ff, #00ffff);
-    color: white;
+    background: linear-gradient(45deg, #00ffff, #00bfff);
+    color: #000;
     font-size: 0.78rem;
     font-weight: 700;
     padding: 6px 14px;
@@ -256,46 +258,59 @@ body::before {
     font-weight: 500;
 }
 
-/* КНОПКА — СУПЕР КРАСИВАЯ */
-.nft-button {
-    display: block;
-    text-align: center;
-    background: linear-gradient(90deg, #00ffff, #ff00ff);
+/* КНОПКИ — ОДИНАКОВЫЙ СТИЛЬ */
+.nft-button,
+.support-btn,
+.copy-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: linear-gradient(90deg, #00ffff, #00bfff);
     color: #000;
     font-weight: 700;
     text-decoration: none;
-    padding: 18px;
-    border-radius: var(--radius);
-    margin-top: 20px;
-    font-size: 1.1rem;
+    padding: 16px 20px;
+    border-radius: 16px;
+    margin-top: 16px;
+    font-size: 1rem;
     position: relative;
     overflow: hidden;
     transition: var(--transition);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.8px;
+    width: 100%;
+    cursor: pointer;
+    border: none;
 }
 
-.nft-button::before {
+.nft-button::before,
+.support-btn::before,
+.copy-btn::before {
     content: '';
     position: absolute;
     top: 0; left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
     transition: 0.7s;
 }
 
-.nft-button:hover::before {
+.nft-button:hover::before,
+.support-btn:hover::before,
+.copy-btn:hover::before {
     left: 100%;
 }
 
-.nft-button:hover {
-    transform: translateY(-3px);
+.nft-button:hover,
+.support-btn:hover,
+.copy-btn:hover {
+    transform: translateY(-2px);
     box-shadow: var(--neon), 0 12px 35px rgba(0, 0, 0, 0.6);
 }
 
-/* Уведомление внутри сайта */
+/* Уведомление */
 .site-notification {
     position: fixed;
     top: 20px;
@@ -371,69 +386,19 @@ body::before {
     font-size: 1.1rem;
 }
 
-/* Адаптивность */
-@media (max-width: 380px) {
-    .stats-bar { grid-template-columns: 1fr; gap: 10px; }
-    .title-glow { font-size: 1.8rem; }
-    .nft-button { padding: 16px; font-size: 1rem; }
-}
-
-/* === КНОПКА ПОДДЕРЖАТЬ — КРИПТОСТИЛЬ === */
-.support-fab {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: linear-gradient(135deg, #ff00ff, #00ffff);
-    color: #000;
-    font-weight: 800;
-    font-size: 1rem;
-    padding: 16px 32px;
-    border-radius: 50px;
-    box-shadow: 
-        0 10px 30px rgba(0, 0, 0, 0.4),
-        0 0 25px rgba(0, 255, 255, 0.6);
-    cursor: pointer;
-    z-index: 900;
-    transition: all 0.35s ease;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    backdrop-filter: blur(10px);
-}
-
-.support-fab:hover {
-    transform: translateX(-50%) translateY(-4px);
-    box-shadow: 
-        0 15px 35px rgba(0, 0, 0, 0.5),
-        0 0 35px rgba(0, 255, 255, 0.9);
-}
-
-.ton-icon {
-    color: currentColor;
-    animation: tonPulse 2s infinite;
-}
-
-@keyframes tonPulse {
-    0%, 100% { filter: drop-shadow(0 0 8px rgba(0, 255, 255, 0.6)); }
-    50% { filter: drop-shadow(0 0 16px rgba(0, 255, 255, 1)); }
-}
-
-/* === МОДАЛЬНОЕ ОКНО — КАК НА БИРЖЕ === */
+/* === МОДАЛЬНОЕ ОКНО — МЯГКИЙ, ЧИТАЕМЫЙ ТЕКСТ === */
 .modal-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(8, 8, 18, 0.95);
-    backdrop-filter: blur(16px);
+    background: rgba(8, 8, 18, 0.97);
+    backdrop-filter: blur(20px);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
     opacity: 0;
     visibility: hidden;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.4s ease;
 }
 
 .modal-overlay.show {
@@ -442,17 +407,15 @@ body::before {
 }
 
 .modal-content {
-    background: linear-gradient(145deg, rgba(25, 25, 45, 0.95), rgba(15, 15, 35, 0.95));
-    border: 2px solid rgba(0, 255, 255, 0.3);
+    background: linear-gradient(145deg, rgba(20, 20, 40, 0.98), rgba(10, 10, 30, 0.98));
+    border: 2px solid rgba(0, 255, 255, 0.4);
     border-radius: 24px;
     width: 92%;
     max-width: 420px;
     padding: 28px;
-    box-shadow: 
-        0 20px 50px rgba(0, 0, 0, 0.6),
-        0 0 40px rgba(0, 255, 255, 0.4);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 255, 255, 0.3);
     transform: scale(0.92);
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.4s ease;
 }
 
 .modal-overlay.show .modal-content {
@@ -475,8 +438,8 @@ body::before {
 .modal-title h3 {
     font-size: 1.5rem;
     font-weight: 800;
-    color: #00ffff;
-    text-shadow: 0 0 16px rgba(0, 255, 255, 0.7);
+    color: var(--accent);
+    text-shadow: var(--neon-soft);
     margin: 0;
 }
 
@@ -500,11 +463,34 @@ body::before {
     transform: rotate(90deg);
 }
 
+/* МЯГКИЙ ТЕКСТ — НЕ РЕЖЕТ ГЛАЗА */
+.modal-desc,
+.network-info,
+.thanks {
+    color: #a0e8ff;
+    font-weight: 500;
+    text-shadow: none;
+    line-height: 1.6;
+}
+
 .modal-desc {
-    color: #a0d8ff;
     font-size: 1.05rem;
     margin-bottom: 16px;
-    line-height: 1.5;
+}
+
+.network-info {
+    font-size: 1rem;
+    margin: 16px 0;
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.thanks {
+    text-align: center;
+    font-weight: 700;
+    margin-top: 20px;
+    font-size: 1.1rem;
+    color: var(--accent);
 }
 
 .ton-address {
@@ -531,35 +517,6 @@ body::before {
     font-weight: 600;
 }
 
-.copy-btn {
-    background: linear-gradient(90deg, #00ff88, #00ffff);
-    color: #000;
-    border: none;
-    padding: 12px 20px;
-    border-radius: 14px;
-    font-weight: 700;
-    font-size: 0.95rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 120px;
-    justify-content: center;
-}
-
-.copy-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0, 255, 136, 0.4);
-}
-
-.network-info {
-    font-size: 1rem;
-    color: #00ffff;
-    margin: 16px 0;
-    font-weight: 600;
-}
-
 .qr-placeholder {
     text-align: center;
     margin: 20px 0;
@@ -577,18 +534,33 @@ body::before {
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
 }
 
-.thanks {
-    text-align: center;
-    color: #00ffff;
-    font-weight: 700;
-    margin-top: 20px;
-    font-size: 1.1rem;
-    text-shadow: 0 0 12px rgba(0, 255, 255, 0.5);
+/* === TON ЛОГОТИП — ТВОЙ ЛОГО В QR === */
+.ton-logo,
+.ton-logo-small {
+    filter: drop-shadow(0 0 10px #00ffff);
 }
+
+.ton-logo.large {
+    filter: drop-shadow(0 0 15px #00ffff);
+}
+
+.pulse-ring {
+    animation: pulseRing 2s infinite;
+}
+
+@keyframes pulseRing {
+    0% { r: 18; opacity: 1; }
+    100% { r: 28; opacity: 0; }
+}
+
+/* === УБИРАЕМ FAB === */
+.support-fab { display: none !important; }
 
 /* Адаптивность */
 @media (max-width: 380px) {
-    .support-fab { padding: 14px 24px; font-size: 0.9rem; }
+    .stats-bar { grid-template-columns: 1fr; gap: 10px; }
+    .title-glow { font-size: 1.8rem; }
+    .nft-button, .support-btn { padding: 14px; font-size: 0.95rem; }
     .modal-content { padding: 20px; }
     .modal-title h3 { font-size: 1.3rem; }
 }
